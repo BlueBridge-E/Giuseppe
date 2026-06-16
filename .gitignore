@@ -1,0 +1,31 @@
+# Xcode
+*.xcuserdata
+*.xcworkspace/xcuserdata
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+
+# Swift
+.build/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# SPM
+.swiftpm/
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# Fastlane
+fastlane/report.xml
+
+# Code Injection
+iOSInjectionProject/
