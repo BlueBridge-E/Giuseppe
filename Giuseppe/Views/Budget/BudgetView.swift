@@ -70,14 +70,26 @@ struct BudgetView: View {
     private func computeSpentAndName(for budget: Budget) -> (spent: Int, categoryName: String) {
         let calendar = Calendar.current
         let now = Date()
-        let month = budget.month ?? calendar.component(.month, from: now)
         let year = budget.year
-        let components = DateComponents(year: year, month: month, day: 1)
-        guard let monthStart = calendar.date(from: components) else { return (0, "总计") }
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? now
+
+        let startDate: Date
+        let endDate: Date
+
+        if budget.type == .yearly {
+            // 年度预算：当年 1 月 1 日 ～ 次年 1 月 1 日
+            let components = DateComponents(year: year, month: 1, day: 1)
+            startDate = calendar.date(from: components) ?? now
+            endDate = calendar.date(byAdding: .year, value: 1, to: startDate) ?? now
+        } else {
+            // 月度预算：当月 1 日 ～ 次月 1 日
+            let month = budget.month ?? calendar.component(.month, from: now)
+            let components = DateComponents(year: year, month: month, day: 1)
+            startDate = calendar.date(from: components) ?? now
+            endDate = calendar.date(byAdding: .month, value: 1, to: startDate) ?? now
+        }
 
         let matching = transactions.filter { txn in
-            txn.date >= monthStart && txn.date < nextMonth && txn.type == .expense
+            txn.date >= startDate && txn.date < endDate && txn.type == .expense
         }
 
         let spent: Int

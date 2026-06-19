@@ -7,6 +7,7 @@ final class SubCategory {
     var name: String
     var icon: String?
     var sortOrder: Int
+    var category: Category?  // 反向关系
 
     init(id: UUID = UUID(), name: String, icon: String? = nil, sortOrder: Int = 0) {
         self.id = id
@@ -24,7 +25,7 @@ final class Category {
     var color: String         // hex
     var type: TransactionType // 使用枚举替代原来的 String
     var sortOrder: Int
-    @Relationship(deleteRule: .cascade) var subCategories: [SubCategory]
+    @Relationship(deleteRule: .cascade, inverse: \SubCategory.category) var subCategories: [SubCategory]
 
     init(
         id: UUID = UUID(),

@@ -9,10 +9,10 @@ struct AssetsView: View {
     @State private var accountToDelete: Account?
     @State private var showingDeleteConfirmation = false
 
-    /// 总资产：仅计入非信用卡且 includeInTotalAsset 的账户
+    /// 总资产：计入所有 includeInTotalAsset 的账户（displayBalance 自动处理信用卡负值）
     var totalAsset: Int {
         accounts
-            .filter { $0.includeInTotalAsset && !$0.isCredit }
+            .filter(\.includeInTotalAsset)
             .reduce(0) { $0 + $1.displayBalance }
     }
 
@@ -179,7 +179,7 @@ struct EditAccountSheet: View {
         self.account = account
         _name = State(initialValue: account.name)
         _selectedType = State(initialValue: account.type)
-        _balanceText = State(initialValue: formatCents(account.balance))
+        _balanceText = State(initialValue: formatCents(account.displayBalance))
     }
 
     var body: some View {
@@ -192,9 +192,9 @@ struct EditAccountSheet: View {
                     }
                 }
                 HStack {
-                    Text("当前余额")
+                    Text(selectedType.isCredit ? "欠款金额" : "当前余额")
                     Spacer()
-                    TextField("余额", text: $balanceText)
+                    TextField(selectedType.isCredit ? "欠款" : "余额", text: $balanceText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
@@ -208,8 +208,10 @@ struct EditAccountSheet: View {
                     Button("更新") {
                         account.name = name
                         account.type = selectedType
-                        if let newBalance = Double(balanceText) {
-                            account.balance = yuanToCents(newBalance)
+                        if let newDisplayBalance = Double(balanceText) {
+                            let cents = yuanToCents(newDisplayBalance)
+                            // 信用卡 balance 为正数(欠款)，displayBalance 为负数 → 取反
+                            account.balance = selectedType.isCredit ? -(cents) : cents
                         }
                         dismiss()
                     }

@@ -157,16 +157,16 @@ final class HomeViewModel {
         )
         context.insert(transaction)
 
-        if category.type.isExpense {
+        switch category.type {
+        case .expense:
             defaultAccount.balance -= cents
-        } else {
-            defaultAccount.balance += cents
-        }
-
-        if category.type.isExpense {
             soundManager?.playExpenseSound()
-        } else {
+        case .income:
+            defaultAccount.balance += cents
             soundManager?.playIncomeSound()
+        case .transfer, .refund:
+            // 转账/退款暂未实现，跳过余额变动
+            break
         }
 
         // 存储撤销信息
@@ -334,10 +334,20 @@ struct EditTransactionSheet: View {
     private func saveChanges() {
         guard let newAmount = Double(amountText).map(yuanToCents), newAmount > 0 else { return }
 
-        // 1. 回滚旧余额
-        revertOldBalance()
+        // 先找到新旧账户，合并验证确保原子性
+        let oldAccount = accounts.first(where: { $0.id == originalAccountId })
+        let newAccount = accounts.first(where: { $0.id == selectedAccountId })
 
-        // 2. 更新交易字段
+        // 回滚旧余额
+        if let oldAcc = oldAccount {
+            if originalType.isExpense {
+                oldAcc.balance += originalAmount
+            } else {
+                oldAcc.balance -= originalAmount
+            }
+        }
+
+        // 更新交易字段
         transaction.amount = newAmount
         transaction.type = selectedType
         transaction.categoryId = selectedCategoryId
@@ -346,28 +356,16 @@ struct EditTransactionSheet: View {
         transaction.note = noteText.isEmpty ? nil : noteText
         transaction.updatedAt = Date()
 
-        // 3. 应用新余额
-        applyNewBalance()
+        // 应用新余额
+        if let newAcc = newAccount {
+            if selectedType.isExpense {
+                newAcc.balance -= newAmount
+            } else {
+                newAcc.balance += newAmount
+            }
+        }
 
         onSave()
         dismiss()
-    }
-
-    private func revertOldBalance() {
-        guard let oldAccount = accounts.first(where: { $0.id == originalAccountId }) else { return }
-        if originalType.isExpense {
-            oldAccount.balance += originalAmount  // 加回支出
-        } else {
-            oldAccount.balance -= originalAmount  // 减去收入
-        }
-    }
-
-    private func applyNewBalance() {
-        guard let newAccount = accounts.first(where: { $0.id == selectedAccountId }) else { return }
-        if selectedType.isExpense {
-            newAccount.balance -= transaction.amount
-        } else {
-            newAccount.balance += transaction.amount
-        }
     }
 }
