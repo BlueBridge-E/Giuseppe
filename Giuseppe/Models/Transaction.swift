@@ -14,18 +14,18 @@ enum TransactionType: String, Codable, CaseIterable {
 
 @Model
 final class Transaction {
-    var id: UUID
-    var amount: Int              // 分
-    var type: TransactionType
-    var categoryId: UUID
+    var id: UUID = UUID()
+    var amount: Int = 0              // 分
+    var type: TransactionType = TransactionType.expense
+    var categoryId: UUID = UUID()
     var subCategoryId: UUID?
-    var accountId: UUID
-    var toAccountId: UUID?       // 转账目标账户（v2 实现）
-    var date: Date
+    var accountId: UUID = UUID()
+    var toAccountId: UUID?           // 转账目标账户（v2 实现）
+    var date: Date = Date()
     var note: String?
-    var imagePaths: [String]
-    var createdAt: Date
-    var updatedAt: Date          // 记录最后修改时间
+    var imagePaths: [String] = []
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()     // 有默认值，支持轻量迁移
 
     init(
         id: UUID = UUID(),

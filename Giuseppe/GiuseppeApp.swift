@@ -5,7 +5,26 @@ import SwiftData
 struct GiuseppeApp: App {
     @State private var themeManager = ThemeManager()
     @State private var soundManager = SoundManager()
-    @State private var modelError: Error?
+    /// 手动创建 ModelContainer，升级时自动清理不兼容的旧数据库
+    private let container: ModelContainer = {
+        // 检查版本升级，清理旧库
+        let currentDBVersion = 2
+        let lastDBVersion = UserDefaults.standard.integer(forKey: "dbVersion")
+        if lastDBVersion < currentDBVersion {
+            let storeDir = URL.applicationSupportDirectory.appending(path: "default.store")
+            try? FileManager.default.removeItem(at: storeDir)
+            try? FileManager.default.removeItem(at: storeDir.appendingPathExtension("wal"))
+            try? FileManager.default.removeItem(at: storeDir.appendingPathExtension("shm"))
+            UserDefaults.standard.set(currentDBVersion, forKey: "dbVersion")
+        }
+        // 创建容器
+        let c = try! ModelContainer(
+            for: Transaction.self, Category.self, SubCategory.self,
+            Account.self, Budget.self, AssetSnapshot.self
+        )
+        SeedDataService.seedIfNeeded(context: c.mainContext)
+        return c
+    }()
 
     var body: some Scene {
         WindowGroup {
@@ -13,34 +32,12 @@ struct GiuseppeApp: App {
                 .tint(themeManager.currentTheme.primaryColor)
                 .environment(themeManager)
                 .environment(soundManager)
-                .alert("数据存储错误", isPresented: Binding(
-                    get: { modelError != nil },
-                    set: { if !$0 { modelError = nil } }
-                )) {
-                    Button("重试") { modelError = nil }
-                } message: {
-                    Text(modelError?.localizedDescription ?? "未知错误")
-                }
-        }
-        .modelContainer(for: [
-            Transaction.self,
-            Category.self,
-            SubCategory.self,
-            Account.self,
-            Budget.self,
-            AssetSnapshot.self
-        ]) { result in
-            switch result {
-            case .success(let container):
-                SeedDataService.seedIfNeeded(context: container.mainContext)
-            case .failure(let error):
-                modelError = error
-            }
+                .modelContainer(container)
         }
     }
 }
 
-// MARK: - 种子数据服务（后续可提取为独立文件）
+// MARK: - 种子数据服务
 
 struct SeedDataService {
     static func seedIfNeeded(context: ModelContext) {
@@ -89,29 +86,5 @@ struct SeedDataService {
     }
 }
 
-// MARK: - SwiftData 迁移方案（v1.0 骨架，后续新增版本在此扩展）
-
-/*
- 当模型变更时（如添加/删除/重命名属性），按以下步骤操作：
- 1. 创建 GiuseppeSchemaV2 复制当前所有模型
- 2. 添加 MigrationStage（轻量或自定义迁移）
- 3. 在 GiuseppeMigrationPlan.schemas 中追加新版本
- 4. 在 GiuseppeApp.modelContainer 中传入 migrationPlan 参数
-
- 使用示例：
-  .modelContainer(
-     for: [Transaction.self, ...],
-     migrationPlan: GiuseppeMigrationPlan.self
-  ) { result in ... }
-*/
-
-/*
-enum GiuseppeMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] {
-        [] // 追加: GiuseppeSchemaV1.self, GiuseppeSchemaV2.self
-    }
-    static var stages: [MigrationStage] {
-        [] // 追加: MigrationStage.lightweight(fromVersion: V1.self, toVersion: V2.self)
-    }
-}
-*/
+// 数据库版本管理：通过 UserDefaults dbVersion 标记，升级时自动清理旧库
+// 未来如需真正的数据迁移（不删数据），再添加 VersionedSchema + MigrationPlan
