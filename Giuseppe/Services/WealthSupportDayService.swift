@@ -1,15 +1,20 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 @Observable
 final class WealthSupportDayService {
+    /// 统计天数（直接在 UserDefaults 读写，确保跨组件同步）
     var lookbackDays: Int {
-        didSet { UserDefaults.standard.set(lookbackDays, forKey: "wealthLookbackDays") }
+        get {
+            let v = UserDefaults.standard.integer(forKey: "wealthLookbackDays")
+            return v > 0 ? v : 30
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "wealthLookbackDays") }
     }
 
     init() {
-        lookbackDays = UserDefaults.standard.integer(forKey: "wealthLookbackDays")
-        if lookbackDays == 0 { lookbackDays = 30 }
+        _ = lookbackDays
     }
 
     func calculateSupportDays(
@@ -20,12 +25,13 @@ final class WealthSupportDayService {
             .filter(\.includeInTotalAsset)
             .reduce(0) { $0 + $1.displayBalance }
 
-        let cutoff = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: Date()) ?? Date()
+        let days = lookbackDays
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         let recentExpenses = transactions
-            .filter { $0.type == "expense" && $0.date >= cutoff }
+            .filter { $0.type == .expense && $0.date >= cutoff }
             .reduce(0) { $0 + $1.amount }
 
-        let dailyAvg = centsToDouble(recentExpenses) / Double(max(lookbackDays, 1))
+        let dailyAvg = centsToDouble(recentExpenses) / Double(max(days, 1))
         let totalAssetYuan = centsToDouble(totalAsset)
 
         guard dailyAvg > 0 else { return totalAssetYuan > 0 ? 9999 : 0 }
@@ -39,6 +45,17 @@ final class WealthSupportDayService {
         case 90..<180: ("🟡 较安全", "caution")
         case 180..<365: ("🟢 很安全", "safe")
         default: ("🟢 财务自由可期", "free")
+        }
+    }
+
+    func statusColor(for days: Double) -> Color {
+        switch statusLabel(for: days).color {
+        case "danger":  .red
+        case "warning": .orange
+        case "caution": .yellow
+        case "safe":    .green
+        case "free":    .teal
+        default:        .blue
         }
     }
 }

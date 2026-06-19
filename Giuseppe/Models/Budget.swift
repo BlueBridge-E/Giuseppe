@@ -1,18 +1,24 @@
 import Foundation
 import SwiftData
 
+/// 预算类型枚举，提供编译时安全
+enum BudgetType: String, Codable, CaseIterable {
+    case monthly = "monthly"
+    case yearly  = "yearly"
+}
+
 @Model
 final class Budget {
     var id: UUID
-    var type: String        // "monthly" | "yearly"
+    var type: BudgetType
     var categoryId: UUID?
-    var amount: Int         // 分
-    var month: Int?         // 1-12
+    var amount: Int           // 分
+    var month: Int?           // 1-12
     var year: Int
 
     init(
         id: UUID = UUID(),
-        type: String = "monthly",
+        type: BudgetType = .monthly,
         categoryId: UUID? = nil,
         amount: Int = 0,
         month: Int? = nil,

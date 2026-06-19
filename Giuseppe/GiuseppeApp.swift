@@ -4,32 +4,51 @@ import SwiftData
 @main
 struct GiuseppeApp: App {
     @State private var themeManager = ThemeManager()
+    @State private var soundManager = SoundManager()
+    @State private var modelError: Error?
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .tint(themeManager.currentTheme.primaryColor)
                 .environment(themeManager)
+                .environment(soundManager)
+                .alert("数据存储错误", isPresented: Binding(
+                    get: { modelError != nil },
+                    set: { if !$0 { modelError = nil } }
+                )) {
+                    Button("重试") { modelError = nil }
+                } message: {
+                    Text(modelError?.localizedDescription ?? "未知错误")
+                }
         }
         .modelContainer(for: [
             Transaction.self,
             Category.self,
+            SubCategory.self,
             Account.self,
             Budget.self,
             AssetSnapshot.self
         ]) { result in
-            if case .success(let container) = result {
-                seedDefaults(context: container.mainContext)
+            switch result {
+            case .success(let container):
+                SeedDataService.seedIfNeeded(context: container.mainContext)
+            case .failure(let error):
+                modelError = error
             }
         }
     }
+}
 
-    private func seedDefaults(context: ModelContext) {
+// MARK: - 种子数据服务（后续可提取为独立文件）
+
+struct SeedDataService {
+    static func seedIfNeeded(context: ModelContext) {
         seedDefaultCategories(context: context)
         seedDefaultAccounts(context: context)
     }
 
-    private func seedDefaultCategories(context: ModelContext) {
+    private static func seedDefaultCategories(context: ModelContext) {
         let descriptor = FetchDescriptor<Category>()
         guard (try? context.fetch(descriptor))?.isEmpty == true else { return }
 
@@ -54,18 +73,45 @@ struct GiuseppeApp: App {
         ]
 
         for (idx, cat) in expenseCategories.enumerated() {
-            context.insert(Category(name: cat.name, icon: cat.icon, color: cat.color, type: "expense", sortOrder: idx))
+            context.insert(Category(name: cat.name, icon: cat.icon, color: cat.color, type: .expense, sortOrder: idx))
         }
         for (idx, cat) in incomeCategories.enumerated() {
-            context.insert(Category(name: cat.name, icon: cat.icon, color: cat.color, type: "income", sortOrder: idx))
+            context.insert(Category(name: cat.name, icon: cat.icon, color: cat.color, type: .income, sortOrder: idx))
         }
     }
 
-    private func seedDefaultAccounts(context: ModelContext) {
+    private static func seedDefaultAccounts(context: ModelContext) {
         let descriptor = FetchDescriptor<Account>()
         guard (try? context.fetch(descriptor))?.isEmpty == true else { return }
 
-        context.insert(Account(name: "现金", type: "cash", sortOrder: 0))
-        context.insert(Account(name: "银行卡", type: "bank", sortOrder: 1))
+        context.insert(Account(name: "现金", type: .cash, sortOrder: 0))
+        context.insert(Account(name: "银行卡", type: .bank, sortOrder: 1))
     }
 }
+
+// MARK: - SwiftData 迁移方案（v1.0 骨架，后续新增版本在此扩展）
+
+/*
+ 当模型变更时（如添加/删除/重命名属性），按以下步骤操作：
+ 1. 创建 GiuseppeSchemaV2 复制当前所有模型
+ 2. 添加 MigrationStage（轻量或自定义迁移）
+ 3. 在 GiuseppeMigrationPlan.schemas 中追加新版本
+ 4. 在 GiuseppeApp.modelContainer 中传入 migrationPlan 参数
+
+ 使用示例：
+  .modelContainer(
+     for: [Transaction.self, ...],
+     migrationPlan: GiuseppeMigrationPlan.self
+  ) { result in ... }
+*/
+
+/*
+enum GiuseppeMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] {
+        [] // 追加: GiuseppeSchemaV1.self, GiuseppeSchemaV2.self
+    }
+    static var stages: [MigrationStage] {
+        [] // 追加: MigrationStage.lightweight(fromVersion: V1.self, toVersion: V2.self)
+    }
+}
+*/

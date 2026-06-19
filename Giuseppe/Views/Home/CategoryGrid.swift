@@ -35,6 +35,8 @@ struct CategoryGrid: View {
                             .lineLimit(1)
                     }
                 }
+                .accessibilityLabel(category.name)
+                .accessibilityHint(category.type.isExpense ? "支出分类，双击记账" : "收入分类，双击记账")
             }
         }
         .padding(.horizontal)

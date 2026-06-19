@@ -14,5 +14,8 @@ struct PieChartView: View {
             .foregroundStyle(item.color)
         }
         .frame(height: 200)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("分类占比饼图")
+        .accessibilityValue(data.map { "\($0.name) \(formatCents($0.amount))元" }.joined(separator: "，"))
     }
 }

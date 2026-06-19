@@ -20,9 +20,9 @@ final class SubCategory {
 final class Category {
     var id: UUID
     var name: String
-    var icon: String       // SF Symbol name
-    var color: String      // hex
-    var type: String       // "expense" | "income"
+    var icon: String          // SF Symbol name
+    var color: String         // hex
+    var type: TransactionType // 使用枚举替代原来的 String
     var sortOrder: Int
     @Relationship(deleteRule: .cascade) var subCategories: [SubCategory]
 
@@ -31,7 +31,7 @@ final class Category {
         name: String,
         icon: String = "questionmark.circle",
         color: String = "007AFF",
-        type: String = "expense",
+        type: TransactionType = .expense,
         sortOrder: Int = 0,
         subCategories: [SubCategory] = []
     ) {

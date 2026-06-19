@@ -22,5 +22,7 @@ struct LineChartView: View {
             .interpolationMethod(.catmullRom)
         }
         .frame(height: 200)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("每日趋势折线图")
     }
 }
